@@ -22,7 +22,7 @@ define
         fun {SumTransactionHash Ts Acc}
             case Ts
             of nil then
-                Acc
+                Acc mod 1000000
             [] H|T then
                 {SumTransactionHash T Acc+{TransactionHash H}}
             end
