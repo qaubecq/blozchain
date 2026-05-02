@@ -125,6 +125,26 @@ define
             true
         end
     end
+
+    fun {GetUpdatedState State Transaction} % Reverse the order of the elements inside the state, due to the tail recursive nature of the aux function
+        fun {GetUpdatedStateAux State Trans Acc Arr}
+            case Arr
+            of nil then
+                Acc
+            [] H|T then
+                if H == Trans.sender then
+                    {GetUpdatedStateAux State Trans (user(balance:(State.(H).balance - Trans.value) nonce:Trans.nonce) | Acc) T} % The return value should be a record not a list, but how to append an element ??
+                elseif H == Trans.receiver then
+                    {GetUpdatedStateAux State Trans (user(balance:(State.(H).balance + Trans.value) nonce:State.(H).nonce) | Acc) T} % The return value should be a record not a list, but how to append an element ??
+                else
+                    {GetUpdatedStateAux State Trans (user(balance:State.(H).balance nonce:State.(H).nonce) | Acc) T} % The return value should be a record not a list, but how to append an element ??
+                end
+            end
+        end
+    in
+        {GetUpdatedStateAux State Transaction nil {Arity State}}
+    end
+
     
 
     %% STUDENT END
@@ -146,6 +166,11 @@ define
             local B=bloc(number:2 previousHash:6 transactions:Tr1|Tr2|nil hash:8+564+565) in
                 {System.show {ComputeBlocEffort B}}
                 {System.show {IsBlocValid B bloc(number:1 previousHash:0 transactions:nil hash:6)}}
+            end
+        end
+        local State=state(1:user(balance:100 nonce:2) 4:user(balance:500 nonce:3)) in
+            local Tr1=tx(nonce:3 block_number:1 hash:564 sender:1 receiver:4 value:55 max_effort:7) in
+                {System.show {GetUpdatedState State Tr1}}
             end
         end
         %% STUDENT START:
