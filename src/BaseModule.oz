@@ -22,7 +22,7 @@ define
         fun {SumTransactionHash Ts Acc}
             case Ts
             of nil then
-                Acc mod 1000000
+                Acc
             [] H|T then
                 {SumTransactionHash T Acc+{TransactionHash H}}
             end
@@ -30,7 +30,7 @@ define
     in
         case B
         of bloc(number:N previousHash:PH transactions:Ts hash:H) then
-            N+PH+{SumTransactionHash Ts 0}
+            N+PH+{SumTransactionHash Ts 0} mod 1000000
         else
             raise invalidBlocException end
         end
