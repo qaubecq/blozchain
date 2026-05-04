@@ -158,6 +158,27 @@ define
          {InitStateAux Genesis state() {Arity Genesis}}
     end
 
+    fun {AddUserIfNeeded State Transaction}
+        fun {ElementInList L E}
+            case L
+            of nil then
+                false
+            [] H|T then
+                if H==E then
+                    true
+                else
+                    {ElementInList T E}
+                end
+            end
+        end
+    in
+        if {ElementInList {Arity State} Transaction.receiver} then
+            State
+        else
+            {AdjoinAt State Transaction.receiver user(balance:0 nonce:0)}
+        end
+    end
+
     
 
     %% STUDENT END
@@ -187,6 +208,7 @@ define
             end
         end
         {System.show {InitState GenesisState}}
+        {System.show {AddUserIfNeeded state(1:user(balance:100 nonce:2)) tx(nonce:3 block_number:1 hash:564 sender:1 receiver:4 value:55 max_effort:7)}}
         %% STUDENT START:
         %% TODO
         %% STUDENT END
