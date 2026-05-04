@@ -145,6 +145,19 @@ define
         {GetUpdatedStateAux State Transaction state() {Arity State}}
     end
 
+    fun {InitState Genesis}
+        fun {InitStateAux Genesis Acc Ari}
+            case Ari
+            of nil then
+                Acc
+            [] H|T then
+                {InitStateAux Genesis {AdjoinAt Acc H user(balance:Genesis.(H) nonce:0)} T}
+            end
+        end
+    in
+         {InitStateAux Genesis state() {Arity Genesis}}
+    end
+
     
 
     %% STUDENT END
@@ -173,6 +186,7 @@ define
                 {System.show {GetUpdatedState State Tr1}}
             end
         end
+        {System.show {InitState GenesisState}}
         %% STUDENT START:
         %% TODO
         %% STUDENT END
