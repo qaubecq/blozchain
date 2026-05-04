@@ -127,22 +127,22 @@ define
     end
 
     fun {GetUpdatedState State Transaction} % Reverse the order of the elements inside the state, due to the tail recursive nature of the aux function
-        fun {GetUpdatedStateAux State Trans Acc Arr}
-            case Arr
+        fun {GetUpdatedStateAux State Trans Acc Ari}
+            case Ari
             of nil then
                 Acc
             [] H|T then
                 if H == Trans.sender then
-                    {GetUpdatedStateAux State Trans (user(balance:(State.(H).balance - Trans.value) nonce:Trans.nonce) | Acc) T} % The return value should be a record not a list, but how to append an element ??
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance - Trans.value) nonce:Trans.nonce)} T}
                 elseif H == Trans.receiver then
-                    {GetUpdatedStateAux State Trans (user(balance:(State.(H).balance + Trans.value) nonce:State.(H).nonce) | Acc) T} % The return value should be a record not a list, but how to append an element ??
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance + Trans.value) nonce:State.(H).nonce)} T}
                 else
-                    {GetUpdatedStateAux State Trans (user(balance:State.(H).balance nonce:State.(H).nonce) | Acc) T} % The return value should be a record not a list, but how to append an element ??
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce)} T}
                 end
             end
         end
     in
-        {GetUpdatedStateAux State Transaction nil {Arity State}}
+        {GetUpdatedStateAux State Transaction state() {Arity State}}
     end
 
     
