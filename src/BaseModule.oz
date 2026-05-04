@@ -126,38 +126,6 @@ define
         end
     end
 
-    fun {GetUpdatedState State Transaction} % Reverse the order of the elements inside the state, due to the tail recursive nature of the aux function
-        fun {GetUpdatedStateAux State Trans Acc Ari}
-            case Ari
-            of nil then
-                Acc
-            [] H|T then
-                if H == Trans.sender then
-                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance - Trans.value) nonce:Trans.nonce)} T}
-                elseif H == Trans.receiver then
-                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance + Trans.value) nonce:State.(H).nonce)} T}
-                else
-                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce)} T}
-                end
-            end
-        end
-    in
-        {GetUpdatedStateAux State Transaction state() {Arity State}}
-    end
-
-    fun {InitState Genesis}
-        fun {InitStateAux Genesis Acc Ari}
-            case Ari
-            of nil then
-                Acc
-            [] H|T then
-                {InitStateAux Genesis {AdjoinAt Acc H user(balance:Genesis.(H) nonce:0)} T}
-            end
-        end
-    in
-         {InitStateAux Genesis state() {Arity Genesis}}
-    end
-
     fun {AddUserIfNeeded State Transaction}
         fun {ElementInList L E}
             case L
@@ -179,6 +147,40 @@ define
         end
     end
 
+    fun {GetUpdatedState State Transaction} % Reverse the order of the elements inside the state, due to the tail recursive nature of the aux function
+        fun {GetUpdatedStateAux State Trans Acc Ari}
+            case Ari
+            of nil then
+                Acc
+            [] H|T then
+                if H == Trans.sender then
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance - Trans.value) nonce:Trans.nonce)} T}
+                elseif H == Trans.receiver then
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance + Trans.value) nonce:State.(H).nonce)} T}
+                else
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce)} T}
+                end
+            end
+        end
+    in
+        {GetUpdatedStateAux {AddUserIfNeeded State Transaction} Transaction state() {Arity {AddUserIfNeeded State Transaction}}}
+    end
+
+    fun {InitState Genesis}
+        fun {InitStateAux Genesis Acc Ari}
+            case Ari
+            of nil then
+                Acc
+            [] H|T then
+                {InitStateAux Genesis {AdjoinAt Acc H user(balance:Genesis.(H) nonce:0)} T}
+            end
+        end
+    in
+         {InitStateAux Genesis state() {Arity Genesis}}
+    end
+
+    
+
     
 
     %% STUDENT END
@@ -194,25 +196,61 @@ define
 
     % This function is the starting point of the execution
     % The GenesisState and the Transactions are given as input and the function is expected to bound the FinalState and the FinalBlockchain to their respective final values.
-    proc {ExecuteBlockchain GenesisState Transactions FinalState FinalBlockchain}
-        local Tr1=tx(nonce:5 block_number:1 hash:564 sender:1 receiver:2 value:556 max_effort:7)   Tr2=tx(nonce:6 block_number:2 hash:565 sender:1 receiver:2 value:556 max_effort:7) in
-            {System.show {IsTransactionValid Tr1 state(user(balance:600 nonce:4) user(balance:10 nonce:1))}}
-            local B=bloc(number:2 previousHash:6 transactions:Tr1|Tr2|nil hash:8+564+565) in
-                {System.show {ComputeBlocEffort B}}
-                {System.show {IsBlocValid B bloc(number:1 previousHash:0 transactions:nil hash:6)}}
+    proc {ExecuteBlockchain GenesisState Transactions FinalState FinalBlockchain}        
+        fun {ExecuteBlockchainAux State Transactions Num PreviousHash FinalState}
+            fun {GetBlock Transactions State NewState TransAcc EffortAcc} % TransAcc should start at nil, EffortAcc should start at 0
+                case Transactions
+                of nil then
+                    NewState = State
+                    bloc(number:Num previousHash:PreviousHash transactions:TransAcc hash:{BlocHash bloc(number:Num previousHash:PreviousHash transactions:TransAcc hash:0)})
+                [] H|T then
+                    % Verify if the transaction is the right block number
+                    if H.block_number == Num then
+                        % Verify if the transaction is valid
+                        if {IsTransactionValid H State} then
+                            % Verify if the effort doesn't exceed the max of 300
+                            if EffortAcc+{ComputeTransactionEffort H} > 300 then
+                                {System.show 'Transaction Skipped (Effort exceeds 300)'}
+                                {GetBlock T State NewState TransAcc EffortAcc}
+                            else
+                                % Add transaction
+                                {GetBlock T {GetUpdatedState State H} NewState H|TransAcc EffortAcc+{ComputeTransactionEffort H}}
+                            end
+                        else
+                            {System.show 'Transaction Skipped (Invalid)'}
+                            {GetBlock T State NewState TransAcc EffortAcc}
+                        end
+                    else
+                        %{System.show 'Transaction Skipped (Wrong block number)'}
+                        {GetBlock T State NewState TransAcc EffortAcc}
+                    end
+                end
+            end
+
+            fun {GetMaxBlockNumber Transactions Acc} % Acc should start at 0
+                case Transactions
+                of nil then
+                    Acc
+                [] H|T then
+                    if H.block_number > Acc then
+                        {GetMaxBlockNumber T H.block_number}
+                    else
+                        {GetMaxBlockNumber T Acc}
+                    end
+                end
+            end
+        in
+            if Num > {GetMaxBlockNumber Transactions 0} then
+                FinalState = State
+                nil
+            else
+                local NewState Bloc in
+                    Bloc = {GetBlock Transactions State NewState nil 0}
+                    Bloc|{ExecuteBlockchainAux NewState Transactions Num+1 Bloc.hash FinalState}
+                end
             end
         end
-        local State=state(1:user(balance:100 nonce:2) 4:user(balance:500 nonce:3)) in
-            local Tr1=tx(nonce:3 block_number:1 hash:564 sender:1 receiver:4 value:55 max_effort:7) in
-                {System.show {GetUpdatedState State Tr1}}
-            end
-        end
-        {System.show {InitState GenesisState}}
-        {System.show {AddUserIfNeeded state(1:user(balance:100 nonce:2)) tx(nonce:3 block_number:1 hash:564 sender:1 receiver:4 value:55 max_effort:7)}}
-        %% STUDENT START:
-        %% TODO
-        %% STUDENT END
-        FinalState = nil
-        FinalBlockchain = nil
+    in
+        FinalBlockchain = {ExecuteBlockchainAux {InitState GenesisState} Transactions 0 0 FinalState}
     end
 end
