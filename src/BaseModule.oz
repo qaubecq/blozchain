@@ -30,7 +30,7 @@ define
     in
         case B
         of bloc(number:N previousHash:PH transactions:Ts hash:H) then
-            N+PH+{SumTransactionHash Ts 0} mod 1000000
+            (N+PH+{SumTransactionHash Ts 0}) mod 1000000
         else
             raise invalidBlocException end
         end
@@ -185,7 +185,7 @@ define
 
     %% Return a string representation of the secret
     fun {Decode Blockchain}
-        fun {DecodeHash H}
+        fun {DecodeHash H Acc}
             SharelockTable = t(10:&a 11:&b 12:&c 13:&d 14:&e 15:&f 16:&g 17:&h 18:&i 19:&j 20:&k 21:&l 22:&m 23:&n 24:&o 25:&p 26:&q 27:&r 28:&s 29:&t 30:&u 31:&v 32:&w 33:&x 34:&y 35:&z 36:& )
             fun {NumberOfDigits N Acc} % Acc=0
                 if N div 10 == 0 then
@@ -196,20 +196,19 @@ define
             end
         in
             if H==0 then
-                nil
+                Acc
             else
                 if ({NumberOfDigits H 0} mod 2) == 1 then
-                    {DecodeHash (H div 10)}
+                    {DecodeHash (H div 10) Acc}
                 else
                     local V Char in
-                        V = (H mod 100) mod 37
+                        V = H mod 100 mod 37
                         if V < 10 then
                             Char = 36
                         else
                             Char = V
                         end
-                        {System.show Char}
-                        SharelockTable.(Char) | {DecodeHash (H div 100)}
+                        {DecodeHash (H div 100) SharelockTable.(Char) | Acc}
                     end
                 end
             end
@@ -232,7 +231,7 @@ define
         of nil then
             nil
         [] H|T then
-            {Concat {Decode T} {DecodeHash H.hash}}
+            {Concat {DecodeHash H.hash nil} {Decode T}}
         end
     end
 
@@ -257,7 +256,7 @@ define
                                 {GetBlock T State NewState TransAcc EffortAcc}
                             else
                                 % Add transaction
-                                {GetBlock T {GetUpdatedState State H} NewState H|TransAcc EffortAcc+{ComputeTransactionEffort H}}
+                                {GetBlock T {GetUpdatedState State H} NewState {List.append TransAcc [H]} EffortAcc+{ComputeTransactionEffort H}}
                             end
                         else
                             {System.show 'Transaction Skipped (Invalid)'}
