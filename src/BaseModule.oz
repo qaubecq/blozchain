@@ -177,9 +177,7 @@ define
         end
     in
          {InitStateAux Genesis state() {Arity Genesis}}
-    end
-
-    
+    end    
 
     
 
@@ -187,10 +185,55 @@ define
 
     %% Return a string representation of the secret
     fun {Decode Blockchain}
-        %% STUDENT START:
-        %% TODO
-        %% STUDENT END
-        nil
+        fun {DecodeHash H}
+            SharelockTable = t(10:&a 11:&b 12:&c 13:&d 14:&e 15:&f 16:&g 17:&h 18:&i 19:&j 20:&k 21:&l 22:&m 23:&n 24:&o 25:&p 26:&q 27:&r 28:&s 29:&t 30:&u 31:&v 32:&w 33:&x 34:&y 35:&z 36:& )
+            fun {NumberOfDigits N Acc} % Acc=0
+                if N div 10 == 0 then
+                    Acc+1
+                else
+                    {NumberOfDigits N div 10 1+Acc}
+                end
+            end
+        in
+            if H==0 then
+                nil
+            else
+                if ({NumberOfDigits H 0} mod 2) == 1 then
+                    {DecodeHash (H div 10)}
+                else
+                    local V Char in
+                        V = (H mod 100) mod 37
+                        if V < 10 then
+                            Char = 36
+                        else
+                            Char = V
+                        end
+                        {System.show Char}
+                        SharelockTable.(Char) | {DecodeHash (H div 100)}
+                    end
+                end
+            end
+        end
+        fun {Concat L1 L2}
+            case L1
+            of nil then
+                case L2
+                of nil then
+                    nil
+                [] H|T then
+                    H | {Concat L1 T}
+                end 
+            [] H|T then
+                H | {Concat T L2}
+            end     
+        end
+    in
+        case Blockchain
+        of nil then
+            nil
+        [] H|T then
+            {Concat {Decode T} {DecodeHash H.hash}}
+        end
     end
 
 
