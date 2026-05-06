@@ -6,7 +6,7 @@ NOMA2=36342400
 ZIP_NAME=$(NOMA1)_$(NOMA2).zip
 
 # Fichiers sources
-BASE_SRC=src/BaseModule.oz src/EffortPasGratuit.oz
+BASE_SRC=src/BaseModule.oz src/EffortPasGratuit.oz src/DenyList.oz
 HELPER_SRC=library/FileHelperModule.oz
 MAIN_SRC=Main.oz
 
