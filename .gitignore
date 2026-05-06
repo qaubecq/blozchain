@@ -1,4 +1,5 @@
 test.oz
 library/FileHelperModule.ozf
 src/BaseModule.ozf
+src/EffortPasGratuit.ozf
 Main.ozf
