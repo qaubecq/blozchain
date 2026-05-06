@@ -2,7 +2,7 @@ functor
 import
     Application
     System
-    BaseModule at './src/DenyList.ozf'
+    BaseModule at './src/BaseModule.ozf'
     FileHelper at './library/FileHelperModule.ozf'
 define
 
