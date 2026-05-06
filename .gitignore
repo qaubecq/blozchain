@@ -1,5 +1,5 @@
-test.oz
 library/FileHelperModule.ozf
 src/BaseModule.ozf
 src/EffortPasGratuit.ozf
+src/DenyList.oz
 Main.ozf
