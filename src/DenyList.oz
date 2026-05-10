@@ -80,7 +80,7 @@ define
     fun {IsTransactionValid T State}
         case T
         of tx(block_number:Bn nonce:N hash:H sender:S receiver:R value:V max_effort:Me) then
-            if 3 < State.(S).deny_counter then
+            if State.(S).denied then
                 {System.show 'Invalid Transaction : Sender is in denylist'}
                 false
             elseif N \= State.(S).nonce+1 then
@@ -146,7 +146,7 @@ define
         if {ElementInList {Arity State} Transaction.receiver} then
             State
         else
-            {AdjoinAt State Transaction.receiver user(balance:0 nonce:0 deny_counter:0)}
+            {AdjoinAt State Transaction.receiver user(balance:0 nonce:0 block_sends:0 denied:false)}
         end
     end
 
@@ -157,11 +157,11 @@ define
                 Acc
             [] H|T then
                 if H == Trans.sender then
-                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance - Trans.value) nonce:Trans.nonce deny_counter:State.(H).deny_counter)} T}
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance - Trans.value) nonce:Trans.nonce block_sends:State.(H).block_sends denied:State.(H).denied)} T}
                 elseif H == Trans.receiver then
-                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance + Trans.value) nonce:State.(H).nonce deny_counter:State.(H).deny_counter)} T}
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:(State.(H).balance + Trans.value) nonce:State.(H).nonce block_sends:State.(H).block_sends denied:State.(H).denied)} T}
                 else
-                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce deny_counter:State.(H).deny_counter)} T}
+                    {GetUpdatedStateAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce block_sends:State.(H).block_sends denied:State.(H).denied)} T}
                 end
             end
         end
@@ -175,45 +175,46 @@ define
             of nil then
                 Acc
             [] H|T then
-                {InitStateAux Genesis {AdjoinAt Acc H user(balance:Genesis.(H) nonce:0 deny_counter:0)} T}
+                {InitStateAux Genesis {AdjoinAt Acc H user(balance:Genesis.(H) nonce:0 block_sends:0 denied:false)} T}
             end
         end
     in
          {InitStateAux Genesis state() {Arity Genesis}}
     end    
 
-    fun {GetUpdatedDenyCounter State Trans}
-        fun {GetUpdatedDenyCounterAux State Trans Acc Ari}
+    fun {GetUpdatedBlockSends State Trans}
+        fun {GetUpdatedBlockSendsAux State Trans Acc Ari}
             case Ari
             of nil then
                 Acc
             [] H|T then
                 if H == Trans.sender then
-                    {GetUpdatedDenyCounterAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce deny_counter:(State.(H).deny_counter+1))} T}
+                    {GetUpdatedBlockSendsAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce block_sends:(State.(H).block_sends+1) denied:State.(H).denied)} T}
                 else
-                    {GetUpdatedDenyCounterAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce deny_counter:State.(H).deny_counter)} T}
+                    {GetUpdatedBlockSendsAux State Trans {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce block_sends:State.(H).block_sends denied:State.(H).denied)} T}
                 end
             end
         end
     in
-        {GetUpdatedDenyCounterAux State Trans state() {Arity State}}
+        {GetUpdatedBlockSendsAux State Trans state() {Arity State}}
     end
 
-    fun {GetResetDenyCounter State}
-        fun {GetResetDenyCounterAux State Acc Ari}
+    fun {GetResetBlockSends State}
+        fun {GetResetBlockSendsAux State Acc Ari}
             case Ari
             of nil then
                 Acc
             [] H|T then
-                if 3 =< State.(H).deny_counter then
-                    {GetResetDenyCounterAux State {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce deny_counter:State.(H).deny_counter)} T}
+                if 3 =< State.(H).block_sends
+ then
+                    {GetResetBlockSendsAux State {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce block_sends:0 denied:true)} T}
                 else
-                    {GetResetDenyCounterAux State {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce deny_counter:0)} T}
+                    {GetResetBlockSendsAux State {AdjoinAt Acc H user(balance:State.(H).balance nonce:State.(H).nonce block_sends:0 denied:State.(H).denied)} T}
                 end
             end
         end
     in
-        {GetResetDenyCounterAux State state() {Arity State}}
+        {GetResetBlockSendsAux State state() {Arity State}}
     end
 
     
@@ -280,13 +281,13 @@ define
             fun {GetBlock Transactions State NewState TransAcc EffortAcc} % TransAcc should start at nil, EffortAcc should start at 0
                 case Transactions
                 of nil then
-                    NewState = {GetResetDenyCounter State}
+                    NewState = {GetResetBlockSends State}
                     bloc(number:Num previousHash:PreviousHash transactions:TransAcc hash:{BlocHash bloc(number:Num previousHash:PreviousHash transactions:TransAcc hash:0)})
                 [] H|T then
                     % Verify if the transaction is the right block number
                     if H.block_number == Num then
                         local State2 in
-                            State2 = {GetUpdatedDenyCounter State H}
+                            State2 = {GetUpdatedBlockSends State H}
                             % Verify if the transaction is valid
                             if {IsTransactionValid H State2} then
                                 % Verify if the effort doesn't exceed the max of 300
